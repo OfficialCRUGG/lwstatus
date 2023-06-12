@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>lwstatus</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 20px;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        background-color: black;
+        color: white;
+      }
+      #app {
+        padding: 1em;
+      }
+      .b {
+        font-weight: bold;
+      }
+      .u {
+        text-decoration: underline;
+      }
+      .t-1 {
+        margin-top: 1em;
+      }
+      .t-2 {
+        margin-top: 2em;
+      }
+      .l-1 {
+        margin-left: 1em;
+      }
+      .l-2 {
+        margin-left: 2em;
+      }
+      .gray {
+        color: darkgray;
+      }
+      .darkgray {
+        color: rgb(79, 79, 79);
+      }
+      .red {
+        color: red;
+      }
+      .yellow {
+        color: yellow;
+      }
+      .orange {
+        color: darkorange;
+      }
+      .green {
+        color: lime;
+      }
+      .blue {
+        color: blue;
+      }
+      a {
+        color: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <p>
+        <span class="b u"
+          >lwstatus<span v-if="version"> v{{version}}</span></span
+        ><span v-if="hostname && hostname !== 'null'" class="darkgray">
+          ({{hostname}})</span
+        >
+      </p>
+      <p class="darkgray">Last updated: {{lastUpdate || "n/a"}}</p>
+      <div class="t-2">
+        <p class="b">
+          General Information:
+          <span v-if="loading" class="darkgray">(loading)</span>
+        </p>
+        <p v-if="!os && !platform && !arch && !uptime && !cpu" class="gray l-1">
+          no data
+        </p>
+        <p v-if="os" class="l-1">[os] <span class="gray">{{os}}</span></p>
+        <p v-if="platform" class="l-1">
+          [platform] <span class="gray">{{platform}}</span>
+        </p>
+        <p v-if="arch" class="l-1">[arch] <span class="gray">{{arch}}</span></p>
+        <p v-if="uptime" class="l-1">
+          [uptime] <span class="gray">{{uptime}}</span>
+        </p>
+        <p v-if="cpu" class="l-1">[cpu] <span class="gray">{{cpu}}</span></p>
+        <p v-if="totalProc" class="l-1">
+          [total_proc] <span class="gray">{{totalProc}}</span>
+        </p>
+      </div>
+
+      <div class="t-1">
+        <p class="b">
+          CPU Usage:
+          <span v-if="loading" class="darkgray">(loading)</span>
+        </p>
+        <p v-if="!cpuPercentage && !cpuBar" class="gray l-1">no data</p>
+        <p v-if="cpuPercentage" class="l-1">
+          [per] <span :class="cpuColor">{{cpuPercentage}}</span>
+        </p>
+        <p v-if="cpuBar" class="l-1">
+          [bar] <span class="gray" v-html="cpuBar"></span>
+        </p>
+      </div>
+
+      <div class="t-1">
+        <p class="b">
+          Memory Usage:
+          <span v-if="loading" class="darkgray">(loading)</span>
+        </p>
+        <p
+          v-if="!memPercentage && !memBar && !memUsed && !memFree"
+          class="gray l-1"
+        >
+          no data
+        </p>
+        <p v-if="memPercentage" class="l-1">
+          [per] <span :class="memColor">{{memPercentage}}</span>
+        </p>
+        <p v-if="memBar" class="l-1">
+          [bar] <span class="gray" v-html="memBar"></span>
+        </p>
+        <p v-if="memUsed" class="l-1">
+          [used] <span :class="memColor">{{memUsed}}</span
+          ><span v-if="memTotal" class="gray"> / {{memTotal}}</span>
+        </p>
+        <p v-if="memFree" class="l-1">
+          [free] <span :class="memColor">{{memFree}}</span>
+        </p>
+      </div>
+
+      <div class="t-1">
+        <p class="b">
+          Storage:
+          <span v-if="loading" class="darkgray">(loading)</span>
+        </p>
+        <p
+          v-if="!diskPercentage && !diskBar && !diskUsed && !diskFree"
+          class="gray l-1"
+        >
+          no data
+        </p>
+        <p v-if="diskPercentage" class="l-1">
+          [per] <span :class="diskColor">{{diskPercentage}}</span>
+        </p>
+        <p v-if="diskBar" class="l-1">
+          [bar] <span class="gray" v-html="diskBar"></span>
+        </p>
+        <p v-if="diskUsed" class="l-1">
+          [used] <span :class="diskColor">{{diskUsed}}</span
+          ><span v-if="diskTotal" class="gray"> / {{diskTotal}}</span>
+        </p>
+        <p v-if="diskFree" class="l-1">
+          [free] <span :class="diskColor">{{diskFree}}</span>
+        </p>
+      </div>
+      <div class="t-2 darkgray">
+        <p v-if="interval <= 0">
+          Automatic updates disabled. Please manually refresh the page to
+          update.
+        </p>
+        <p v-else>
+          Automatically refreshes every {{interval}} seconds.<br /><span
+            v-if="nextRefresh && nextRefresh > 0"
+            >Next refresh scheduled in {{nextRefresh}} seconds.</span
+          ><span v-else>Refreshing...</span>
+        </p>
+      </div>
+      <div class="t-1 gray">
+        Running <a href="https://github.com/OfficialCRUGG/lwstatus">lwstatus</a
+        ><span v-if="version"> {{version}}</span> by
+        <a href="https://github.com/OfficialCRUGG">CRUGG</a>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.7.14"></script>
+    <script>
+      const interval = 5;
+      const barWidth = 40;
+      const barCharacter = "|";
+      const hostname = "debug";
+
+      function formatTime(seconds) {
+        const days = Math.floor(seconds / (24 * 60 * 60));
+        seconds -= days * (24 * 60 * 60);
+        const hours = Math.floor(seconds / (60 * 60));
+        seconds -= hours * (60 * 60);
+        const minutes = Math.floor(seconds / 60);
+
+        if (days > 0) {
+          return `${days} day${days > 1 ? "s" : ""}, ${hours} hour${
+            hours > 1 ? "s" : ""
+          }, ${minutes} minute${minutes > 1 ? "s" : ""}`;
+        }
+        if (hours > 0) {
+          return `${hours} hour${hours > 1 ? "s" : ""}, ${minutes} minute${
+            minutes > 1 ? "s" : ""
+          }`;
+        }
+        return `${minutes} minute${minutes > 1 ? "s" : ""}`;
+      }
+
+      function bToGb(bytes) {
+        return bytes / 1024 / 1024 / 1024;
+      }
+
+      const app = new Vue({
+        el: "#app",
+        data: {
+          loading: true,
+          lastUpdate: null,
+          os: null,
+          platform: null,
+          arch: null,
+          uptime: null,
+          totalProc: null,
+          cpu: null,
+          cpuPercentage: null,
+          cpuBar: null,
+          cpuColor: null,
+          memPercentage: null,
+          memUsed: null,
+          memTotal: null,
+          memFree: null,
+          memBar: null,
+          memColor: null,
+          diskPercentage: null,
+          diskUsed: null,
+          diskTotal: null,
+          diskFree: null,
+          diskBar: null,
+          diskColor: null,
+          version: null,
+          interval,
+          nextRefresh: null,
+          hostname,
+        },
+        methods: {
+          async getData() {
+            this.loading = true;
+            const data = await fetch("http://127.0.0.1:3123/api").then((res) =>
+              res.json()
+            );
+
+            this.os = data.os.os;
+            this.platform = data.os.platform;
+            this.arch = data.os.arch;
+            this.uptime = formatTime(data.os.uptime);
+            this.totalProc = data.totalProcesses;
+            this.cpu = data.cpu?.model;
+
+            this.cpuPercentage = data.cpu?.averageUsage
+              ? `${data.cpu.averageUsage.toFixed(2)}%`
+              : null;
+            this.cpuBar = this.getCpuBar(data.cpu?.averageUsage, barWidth);
+            this.cpuColor = this.getCpuColor(data.cpu?.averageUsage);
+
+            this.memPercentage = data.mem?.usedMemPercentage
+              ? `${data.mem.usedMemPercentage.toFixed(2)}%`
+              : null;
+            this.memUsed = data.mem?.usedMemMb
+              ? `${(data.mem.usedMemMb / 1024).toFixed(2)} GB`
+              : null;
+            this.memTotal = data.mem?.totalMemMb
+              ? `${data.mem.totalMemMb / 1024} GB`
+              : null;
+            this.memFree = data.mem?.freeMemMb
+              ? `${(data.mem.freeMemMb / 1024).toFixed(2)} GB`
+              : null;
+            this.memBar = this.getCpuBar(data.mem?.usedMemPercentage, barWidth);
+            this.memColor = this.getCpuColor(data.mem?.usedMemPercentage);
+
+            this.diskTotal = data.drive?.size
+              ? `${bToGb(data.drive.size).toFixed(2)} GB`
+              : null;
+            this.diskFree = data.drive?.free
+              ? `${bToGb(data.drive.free).toFixed(2)} GB`
+              : null;
+            this.diskUsed =
+              data.drive?.size && data.drive?.free
+                ? `${bToGb(data.drive.size - data.drive.free).toFixed(2)} GB`
+                : null;
+            this.diskPercentage =
+              data.drive?.free && data.drive?.size
+                ? `${(
+                    ((data.drive.size - data.drive.free) / data.drive.size) *
+                    100
+                  ).toFixed(2)}%`
+                : null;
+            this.diskBar = this.getCpuBar(
+              ((data.drive.size - data.drive.free) / data.drive.size) * 100,
+              barWidth
+            );
+            this.diskColor = this.getCpuColor(
+              ((data.drive.size - data.drive.free) / data.drive.size) * 100
+            );
+
+            this.version = data._version;
+
+            document.title = `lwstatus ${data._version}`;
+
+            this.loading = false;
+            this.lastUpdate = new Date().toLocaleString();
+          },
+          getCpuBar(usage, width) {
+            if (!usage) return "";
+            const bar = [];
+            const used = Math.floor((usage / 100) * width);
+            bar.push(
+              `<span class="${this.getCpuColor(
+                usage - 1 < 0 ? 0 : usage - 1
+              )} b">${barCharacter.repeat(used)}</span>`
+            );
+            bar.push(`<span class="blue b">${barCharacter}</span>`);
+            bar.push(
+              `<span class="gray">${barCharacter.repeat(width - used)}</span>`
+            );
+            return bar.join("");
+          },
+          getCpuColor(usage) {
+            if (!usage) return "gray";
+            if (usage < 60) return "green";
+            if (usage < 80) return "yellow";
+            if (usage < 90) return "orange";
+            return "red";
+          },
+        },
+        mounted() {
+          this.getData();
+          if (interval > 0) {
+            setInterval(() => {
+              this.getData();
+            }, interval * 1000);
+            setInterval(() => {
+              this.nextRefresh = Math.round(
+                (new Date(this.lastUpdate).getTime() +
+                  interval * 1000 -
+                  new Date().getTime()) /
+                  1000
+              );
+            }, 500);
+          }
+        },
+      });
+    </script>
+  </body>
+</html>
