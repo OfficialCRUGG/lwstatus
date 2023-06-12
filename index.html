@@ -246,9 +246,7 @@
         methods: {
           async getData() {
             this.loading = true;
-            const data = await fetch("http://127.0.0.1:3123/api").then((res) =>
-              res.json()
-            );
+            const data = await fetch("/api").then((res) => res.json());
 
             this.os = data.os.os;
             this.platform = data.os.platform;

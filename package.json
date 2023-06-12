@@ -1,6 +1,6 @@
 {
   "name": "lwstatus",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "💾 Lightweight webserver exposing various system metrics to a JSON Endpoint and frontend",
   "main": "index.js",
   "repository": {
